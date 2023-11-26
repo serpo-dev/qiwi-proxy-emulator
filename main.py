@@ -2,9 +2,22 @@ import requests
 import signal
 import sys
 import urllib.parse
+import ast
 import re
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
+
+class Storage:
+    cache = dict()
+
+    def add_to_cache(self):
+        pass
+
+    def delete_partner(self):
+        pass
+
+    def read_cache(self):
+        pass
 
 class ProjectProxy:
     def start_server(self):
@@ -28,7 +41,6 @@ class ProjectProxy:
 
             def _handle_request(self, method, requests_func):
                 url = self._resolve_url()
-                print(url)
 
                 if url is None:
                     self.send_response(404)
@@ -36,7 +48,10 @@ class ProjectProxy:
                     self.end_headers()
                     return
 
-                body = self.rfile.read(int(self.headers["content-length"]))
+                body = (self.rfile.read(int(self.headers["content-length"]))).decode('UTF-8')
+                body = ast.literal_eval(body)
+                del body['id']
+
                 headers = dict(self.headers)
 
                 resp = requests_func(url, data=body, headers=headers)
