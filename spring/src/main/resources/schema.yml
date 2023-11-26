@@ -1,0 +1,22 @@
+visa:
+  format: "json"
+  payload:
+    method: false
+    params:
+      card_holder_name: true
+      card_number: true
+      card_expire: true
+      card_cvc: true
+      amount: true
+      description: true
+      redirect_url: false
+    id: false
+master:
+  format: "xml"
+  payload:
+    request:
+      pg_card_number: true
+      pg_description: true
+      pg_cardholder: true
+      pg_expire_date: true
+      pg_cvv: true
