@@ -1,25 +1,18 @@
-package com.proxyqiwi.qiwiproxyemulator;
+package com.proxyqiwi;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestBody;
 
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RestController;
 
 import org.springframework.web.client.RestTemplate;
-
-import org.springframework.beans.factory.annotation.Value;
+import org.apache.coyote.Response;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.yaml.snakeyaml.Yaml;
@@ -27,112 +20,49 @@ import org.yaml.snakeyaml.Yaml;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Map;
-import org.yaml.snakeyaml.Yaml;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import java.util.ArrayList;
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
 
 import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestTemplate;
-
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.client.RestTemplate;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
-
-// import org.springframework.beans.factory.annotation.Autowired;
-// import org.springframework.jdbc.core.JdbcTemplate;
-// import org.springframework.web.bind.annotation.GetMapping;
-// import org.springframework.web.bind.annotation.RestController;
+import java.io.*;
 
 @RestController
 public class ProxyController {
 
-    // // Подключение БД
-    // private final JdbcTemplate jdbcTemplate;
-
-    // @Autowired
-    // public ProxyController(JdbcTemplate jdbcTemplate) {
-    // this.jdbcTemplate = jdbcTemplate;
-    // }
-
-    @PostMapping("/proxy/{partner_name}")
-    public ResponseEntity<Map<String, Object>> processPostPayload(@RequestBody String requestBody,
-            @PathVariable("partner_name") String partnerName) {
-        String method = "POST";
-
-        try {
-            // Загрузка YAML-файла
-            Yaml yaml = new Yaml();
-            InputStream inputStream = new ClassPathResource("schema.yml").getInputStream();
-            Map<String, Object> yamlMap = yaml.load(inputStream);
-            Map<String, Object> visaMap = (Map<String, Object>) yamlMap.get("visa");
-            Map<String, Object> schema = (Map<String, Object>) visaMap.get("payload");
-
-            // Преобразование JSON-запроса в объект
-            ObjectMapper objectMapper = new ObjectMapper();
-            Map<String, Object> jsonMap;
-            try {
-                jsonMap = objectMapper.readValue(requestBody, Map.class);
-            } catch (IOException e) {
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(null);
-            }
-
-            // Создание объекта результата
-            Map<String, Object> resultMap = new HashMap<>();
-            processFields(schema, jsonMap, resultMap, "");
-
-            String resultMapString = resultMap.toString();
-            Map<String, Object> cached = findCached(resultMapString, method, partnerName);
-            boolean isCached = (boolean) cached.getOrDefault("is_cached", false);
-
-            if (isCached) {
-                Map<String, Object> resultData = (Map<String, Object>) cached.getOrDefault("result_data", null);
-                return ResponseEntity.status(HttpStatus.OK).body(resultData);
-            } else {
-                return ResponseEntity.status(201).body(null);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
-    }
-
     @PutMapping("/proxy/{partner_name}")
-    public ResponseEntity<Map<String, Object>> processPutPayload(@RequestBody String requestBody,
+    public ResponseEntity<String> PutHandler(@RequestBody String requestBody,
+            @RequestParam("url") String url,
             @PathVariable("partner_name") String partnerName) {
         String method = "PUT";
+        return processPutPayload(method, requestBody, url, partnerName);
+    }
+
+    @PostMapping("/proxy/{partner_name}")
+    public ResponseEntity<String> PostHadler(@RequestBody String requestBody,
+            @RequestParam("url") String url,
+            @PathVariable("partner_name") String partnerName) {
+        String method = "POST";
+        return processPutPayload(method, requestBody, url, partnerName);
+    }
+
+    private ResponseEntity<String> processPutPayload(String method, @RequestBody String requestBody,
+            @RequestParam("url") String url,
+            @PathVariable("partner_name") String partnerName) {
 
         try {
             // Загрузка YAML-файла
             Yaml yaml = new Yaml();
             InputStream inputStream = new ClassPathResource("schema.yml").getInputStream();
             Map<String, Object> yamlMap = yaml.load(inputStream);
-            Map<String, Object> visaMap = (Map<String, Object>) yamlMap.get("visa");
+            Map<String, Object> visaMap = (Map<String, Object>) yamlMap.get(partnerName);
             Map<String, Object> schema = (Map<String, Object>) visaMap.get("payload");
 
             // Преобразование JSON-запроса в объект
@@ -153,14 +83,49 @@ public class ProxyController {
             boolean isCached = (boolean) cached.getOrDefault("is_cached", false);
 
             if (isCached) {
-                Map<String, Object> resultData = (Map<String, Object>) cached.getOrDefault("result_data", null);
+                String resultData = (String) cached.getOrDefault("result_data", null).toString();
                 return ResponseEntity.status(HttpStatus.OK).body(resultData);
             } else {
-                return ResponseEntity.status(201).body(null);
+                ResponseEntity<String> response = makeRequest(url, method, requestBody);
+                String partner = partnerName;
+                String req_method = method;
+                String req_body = resultMapString;
+                String res_body = response.getBody().toString();
+                int res_status = response.getStatusCodeValue();
+
+                System.out.println(partner);
+                System.out.println(req_method);
+                System.out.println(req_body);
+                System.out.println(res_body);
+                System.out.println(res_status);
+
+                FileWriter writer = null;
+                try {
+                    // Чтение содержимого файла
+                    writer = new FileWriter("./src/main/resources/cached.txt", true); // true означает, что запись будет
+                                                                                      // добавлена в конец
+                    String newLine = partner + "|" + req_method + "|" + req_body + "|" + res_body + "|" + res_status
+                            + "\n";
+                    writer.write(newLine);
+
+                    System.out.println("Переменные успешно записаны в файл.");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally {
+                    if (writer != null) {
+                        try {
+                            writer.close();
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+
+                return ResponseEntity.status(res_status).body(res_body);
             }
         } catch (IOException e) {
             e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("");
         }
     }
 
@@ -181,28 +146,11 @@ public class ProxyController {
         }
     }
 
-    // public boolean checkCached(@RequestParam String body, @RequestParam String
-    // partner_name) {
-    // String sql = "SELECT EXISTS(SELECT 1 FROM cached_reqs WHERE body = ? AND
-    // partner_name = ?)";
-
-    // boolean exists = jdbcTemplate.queryForObject(sql, Boolean.class, body,
-    // partner_name);
-
-    // if (!exists) {
-    // String insertSql = "INSERT INTO cached_reqs (body, partner_name) VALUES (?,
-    // ?)";
-    // jdbcTemplate.update(insertSql, body, partner_name);
-    // }
-
-    // return exists;
-    // }
-
     private Map<String, Object> findCached(@RequestParam String body, String method,
             @RequestParam String partner_name) {
         List<List<String>> result = new ArrayList<>();
 
-        try (BufferedReader br = new BufferedReader(new FileReader("cached.txt"))) {
+        try (BufferedReader br = new BufferedReader(new FileReader("./src/main/resources/cached.txt"))) {
             String line;
             while ((line = br.readLine()) != null) {
                 String[] substrings = line.split("\\|");
@@ -242,86 +190,32 @@ public class ProxyController {
         response.put("data", null);
 
         return response;
-
-        // String sql = "SELECT EXISTS(SELECT 1 FROM cached_reqs WHERE body = ? AND
-        // partner_name = ?)";
-        // boolean exists = (boolean) jdbcTemplate.queryForObject(sql, Boolean.class,
-        // body, partner_name);
-
-        // if (!exists) {
-        // return Map.of("is_cached", false, "result_data", null);
-        // } else {
-        // String selectSql = "SELECT * FROM cached_res WHERE cached_reqs_id = (SELECT
-        // id FROM cached_reqs WHERE body = ? AND partner_name = ?)";
-        // Map<String, Object> resultData = jdbcTemplate.queryForMap(selectSql, body,
-        // partner_name);
-
-        // if (resultData != null) {
-        // return Map.of("is_cached", true, "result_data", resultData);
-        // } else {
-        // String deleteSql = "DELETE FROM cached_reqs WHERE body = ? AND partner_name =
-        // ?";
-        // jdbcTemplate.update(deleteSql, body, partner_name);
-        // return Map.of("is_cached", false, "result_data", null);
-        // }
-        // }
     }
 
-    // @GetMapping(value = "/{partner_name}")
-    // public Map<String, String> getFormat(@PathVariable("partner_name") String
-    // partnerName) throws IOException {
-    // Yaml yaml = new Yaml();
-    // try (InputStream inputStream = new
-    // ClassPathResource("schema.yml").getInputStream()) {
-    // Map<String, Map<String, Object>> schema = yaml.load(inputStream);
-    // if (schema.containsKey(partnerName)) {
-    // String format = (String) schema.get(partnerName).get("format");
-    // return Map.of("type", format);
-    // }
-    // }
-    // return null;
-    // }
-
-    // private final RestTemplate restTemplate;
-
-    // public ProxyController(RestTemplate restTemplate) {
-    // this.restTemplate = restTemplate;
-    // }
-
-    // @RequestMapping("/proxy")
-    // public ResponseEntity<String> proxyRequest(@RequestParam("url") String url) {
-    // RestTemplate restTemplate = new RestTemplate();
-    // ResponseEntity<String> response = restTemplate.getForEntity(url,
-    // String.class);
-    // return response;
-    // }
-
-    @RequestMapping("/proxy")
-    public ResponseEntity<String> proxyRequest(@RequestParam("url") String url, @RequestBody String body) {
-        System.out.println("URL: " + url);
+    private ResponseEntity<String> makeRequest(String req_url, String req_method, String req_body) {
+        System.out.println("URL: " + req_url);
 
         RestTemplate restTemplate = new RestTemplate();
-        HttpMethod method = HttpMethod.GET; // Сохраняем метод запроса в локальную переменную
+
+        // Сохраняем метод запроса в локальную переменную
+        HttpMethod method;
+        switch (req_method) {
+            case "PUT":
+                method = HttpMethod.PUT;
+                break;
+            case "POST":
+                method = HttpMethod.POST;
+                break;
+            default:
+                method = HttpMethod.GET;
+        }
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
 
-        HttpEntity<String> requestEntity = new HttpEntity<>(body, headers);
+        HttpEntity<String> requestEntity = new HttpEntity<>(req_body, headers);
+        ResponseEntity<String> response = restTemplate.exchange(req_url, method, requestEntity, String.class);
 
-        // Выполняем запрос на сервер и получаем ответ
-        ResponseEntity<String> response = restTemplate.exchange(url, method, requestEntity, String.class);
-
-        // Сохраняем тело ответа и статус код в локальные переменные
-        String responseBody = response.getBody();
-        int statusCode = response.getStatusCodeValue();
-
-        // Выводим все четыре переменные в командную строку
-        System.out.println("Метод запроса: " + method);
-        System.out.println("Тело запроса: " + body);
-        System.out.println("Тело ответа: " + responseBody);
-        System.out.println("Статус код: " + statusCode);
-
-        // Возвращаем полученный ответ клиенту
         return response;
     }
 }

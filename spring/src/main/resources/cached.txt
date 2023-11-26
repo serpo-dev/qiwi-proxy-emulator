@@ -1,0 +1,14 @@
+visa|PUT|{params.description=Month subscription, params.amount=1000, params.card_holder_name=CARDHOLDER NAME, params.card_cvc=067, params.card_number=4278011111275400, params.card_expire=2702}|{
+ "id": "dde3cab6-8b76-11ee-b9d1-0242ac120002",
+ "result": {
+    "transaction_id": "1485295",
+    "confirm_url": "https://ecomm.kapital.ru:6443/ecomm2/ClientHandler?trans_id=tYkiAVsnP3SnjBMSiXrWGrIRbeo%3D"
+  }
+}|200
+visa|PUT|{params.description=Month subscription, params.amount=1000, params.card_holder_name=CARDHOLDER NAME, params.card_cvc=067, params.card_number=4278011111275400, params.card_expire=2702}|{
+ "id": "dde3cab6-8b76-11ee-b9d1-0242ac120002",
+ "result": {
+    "transaction_id": "1485295",
+    "confirm_url": "https://ecomm.kapital.ru:6443/ecomm2/ClientHandler?trans_id=tYkiAVsnP3SnjBMSiXrWGrIRbeo%3D"
+  }
+}|200

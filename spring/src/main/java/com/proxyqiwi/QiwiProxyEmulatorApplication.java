@@ -1,4 +1,4 @@
-package com.proxyqiwi.qiwiproxyemulator;
+package com.proxyqiwi;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
